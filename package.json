@@ -16,6 +16,7 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "sync:readme": "node scripts/update-readme-version.js",
+    "status": "node scripts/status.js",
     "server": "node server.js"
   },
   "proxy": "http://localhost:3001",
