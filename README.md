@@ -81,3 +81,19 @@ yarn start
 ## 📄 License
 
 MIT
+# 发布说明
+
+推荐使用 `release.sh` 一键发布：
+
+```bash
+./release.sh patch   # 1.0.0 -> 1.0.1
+./release.sh minor   # 1.0.0 -> 1.1.0
+./release.sh major   # 1.0.0 -> 2.0.0
+```
+
+脚本会自动：
+1. 检查是否有未提交改动
+2. 更新 `package.json` 版本号
+3. 推送代码与 tag
+
+然后在 GitHub 仓库的 Releases 页面创建 Release（选择对应 tag 即可）。
