@@ -17,6 +17,9 @@ if ! git diff --quiet; then
 fi
 
 npm version "$LEVEL"
+npm run sync:readme
+git add README.md
+git commit -m "chore: sync readme version"
 git push
 git push --tags
 
