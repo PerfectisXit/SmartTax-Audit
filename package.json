@@ -2,6 +2,8 @@
   "name": "smarttax-audit",
   "version": "1.0.4",
   "private": true,
+  "description": "SmartTax Audit desktop app",
+  "author": "Pan Xuan",
   "main": "electron/main.js",
   "scripts": {
     "start": "react-scripts start",
@@ -62,11 +64,13 @@
     "asar": true,
     "mac": {
       "target": [
-        "dmg"
-      ],
-      "arch": [
-        "x64",
-        "arm64"
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ]
     },
     "win": {
