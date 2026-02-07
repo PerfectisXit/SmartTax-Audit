@@ -1,18 +1,31 @@
 import { ExtractedInvoiceData, AuditResult, ProcessedResult, ExpenseCategory, InvoiceType, DiningPlan, TravelExpenseType, DiningApplicationData } from '../types';
 import { DEFAULT_DINING_RULES, resolveStaffRange } from './diningRules';
-import { COMPANY_TAX_MAP, HOLIDAYS_2024 } from '../constants';
+import { COMPANY_TAX_MAP, getHolidayList } from '../constants';
+
+const parseDateLocal = (dateStr: string): Date | null => {
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return null;
+  return new Date(y, mo - 1, d);
+};
 
 // Helper to check if a date is a weekend or holiday
 const isNonWorkingDay = (date: Date): boolean => {
   const day = date.getDay();
   const dateString = date.toISOString().split('T')[0];
+  const holidayList = getHolidayList(date.getFullYear());
   // 0 is Sunday, 6 is Saturday
-  return day === 0 || day === 6 || HOLIDAYS_2024.includes(dateString);
+  return day === 0 || day === 6 || holidayList.includes(dateString);
 };
 
 // Calculate the working day before a given date
 const getPreviousWorkingDay = (invoiceDateStr: string): string => {
-  let current = new Date(invoiceDateStr);
+  const parsed = parseDateLocal(invoiceDateStr);
+  if (!parsed) return invoiceDateStr;
+  let current = parsed;
   // Start checking from the day before
   current.setDate(current.getDate() - 1);
 
@@ -128,6 +141,7 @@ export const validateDiningApplicationAgainstInvoice = (
 
 export const auditInvoice = (data: ExtractedInvoiceData): ProcessedResult => {
   const category = detectCategory(data);
+  const isNonStandard = Boolean(data.documentType && data.documentType !== 'vat_invoice');
   const audit: AuditResult = {
     companyMatch: { passed: true, message: '公司名称与税号匹配 ✅', severity: 'success' },
     invoiceTypeCheck: { passed: true, message: '发票类型符合要求 ✅', severity: 'success' },
@@ -135,20 +149,29 @@ export const auditInvoice = (data: ExtractedInvoiceData): ProcessedResult => {
   };
 
   // 1. Validate Company Info
-  const expectedTaxId = COMPANY_TAX_MAP[data.buyerName];
-  if (!expectedTaxId) {
-    audit.companyMatch = { 
-      passed: false, 
-      message: `警告: 未知公司名称 "${data.buyerName}"。请人工核对税号。 ⚠️`, 
-      severity: 'warning' 
+  if (isNonStandard) {
+    audit.companyMatch = {
+      passed: true,
+      message: '非标票据，跳过公司名称与税号校验',
+      severity: 'success'
     };
-  } else if (expectedTaxId !== data.buyerTaxId) {
-    audit.companyMatch = { 
-      passed: false, 
-      message: `错误: 税号不匹配! \n发票: ${data.buyerTaxId} \n系统: ${expectedTaxId} ❌`, 
-      severity: 'error' 
-    };
-    audit.generalStatus = 'invalid';
+  } else {
+    const expectedTaxId = COMPANY_TAX_MAP[data.buyerName];
+    if (!expectedTaxId) {
+      audit.companyMatch = { 
+        passed: false, 
+        message: `警告: 未知公司名称 "${data.buyerName}"。请人工核对税号。 ⚠️`, 
+        severity: 'warning' 
+      };
+      audit.generalStatus = 'warning';
+    } else if (expectedTaxId !== data.buyerTaxId) {
+      audit.companyMatch = { 
+        passed: false, 
+        message: `错误: 税号不匹配! \n发票: ${data.buyerTaxId} \n系统: ${expectedTaxId} ❌`, 
+        severity: 'error' 
+      };
+      audit.generalStatus = 'invalid';
+    }
   }
 
   // 2. Validate Accommodation Invoice Type
@@ -195,13 +218,11 @@ export const validateTravelBatchItem = (
     // We only care about errors/warnings here
     const basicAudit = auditInvoice(data);
     
-    if (basicAudit.audit.generalStatus === 'invalid' || basicAudit.audit.generalStatus === 'warning') {
-       if (!basicAudit.audit.companyMatch.passed) {
-           errors.push(basicAudit.audit.companyMatch.message);
-       }
-       if (!basicAudit.audit.invoiceTypeCheck.passed) {
-           errors.push(basicAudit.audit.invoiceTypeCheck.message);
-       }
+    if (!basicAudit.audit.companyMatch.passed) {
+       errors.push(basicAudit.audit.companyMatch.message);
+    }
+    if (!basicAudit.audit.invoiceTypeCheck.passed) {
+       errors.push(basicAudit.audit.invoiceTypeCheck.message);
     }
 
     // 2. Date Check for Tickets against Application Range
@@ -212,8 +233,9 @@ export const validateTravelBatchItem = (
     if (appStart && appEnd) {
         if (data.expenseType === TravelExpenseType.TRAIN || data.expenseType === TravelExpenseType.FLIGHT) {
              const parts = parseDateParts(data.invoiceDate);
-             const start = new Date(appStart);
-             const end = new Date(appEnd);
+             const start = parseDateLocal(appStart);
+             const end = parseDateLocal(appEnd);
+             if (!start || !end) return { errors, normalizedDate, yearConfirm };
              const appYearStart = start.getFullYear();
              const appYearEnd = end.getFullYear();
 
@@ -236,7 +258,8 @@ export const validateTravelBatchItem = (
              }
 
              const compareDateStr = normalizedDate || data.invoiceDate;
-             const ticketDate = new Date(compareDateStr);
+             const ticketDate = parseDateLocal(compareDateStr);
+             if (!ticketDate) return { errors, normalizedDate, yearConfirm };
              ticketDate.setHours(0,0,0,0);
              start.setHours(0,0,0,0);
              end.setHours(0,0,0,0);

@@ -40,7 +40,8 @@ const App: React.FC = () => {
     error,
     clearError,
     logs,
-    clearLogs
+    clearLogs,
+    resetDiningApp
   } = useAuditController(provider, () => setIsSettingsOpen(true));
   
   // Load initial provider
@@ -208,7 +209,10 @@ const App: React.FC = () => {
                 const ready = auditItems.filter(i => i.status === 'success' && i.result).map(i => ({ file: i.file, result: i.result! }));
                 if (ready.length > 0) packageAndDownloadAuditFiles(ready);
               }}
-              onClearList={() => setAuditItems([])}
+              onClearList={() => {
+                setAuditItems([]);
+                resetDiningApp();
+              }}
               onFileSelect={handleAuditFilesSelect}
               onPrevPage={() => setAuditPage(p => Math.max(1, p - 1))}
               onNextPage={() => setAuditPage(p => Math.min(auditTotalPages, p + 1))}

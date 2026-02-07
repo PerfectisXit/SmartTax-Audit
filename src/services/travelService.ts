@@ -47,12 +47,21 @@ export const calculateTravelReport = (
     // 2. Determine Dates (Optimized Logic)
     let finalStart: Date | null = null;
     let finalEnd: Date | null = null;
+    const parseDateLocal = (dateStr: string): Date | null => {
+        const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return null;
+        const y = Number(m[1]);
+        const mo = Number(m[2]);
+        const d = Number(m[3]);
+        if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return null;
+        return new Date(y, mo - 1, d);
+    };
 
     if (validItems.length > 0) {
         // Collect timestamps helper
         const getDates = (filterFn: (i: TravelBatchItem) => boolean) => 
             validItems.filter(filterFn)
-            .map(i => new Date(i.result!.invoiceDate).getTime())
+            .map(i => parseDateLocal(i.result!.invoiceDate)?.getTime() ?? NaN)
             .filter(d => !isNaN(d));
 
         // Transport: Hard evidence of movement
@@ -94,8 +103,14 @@ export const calculateTravelReport = (
         const autoEnd = new Date(endTime);
 
         // Apply Manual Overrides or Defaults
-        finalStart = manualStartDate ? new Date(manualStartDate) : autoStart;
-        finalEnd = manualEndDate ? new Date(manualEndDate) : autoEnd;
+        const manualStart = manualStartDate ? parseDateLocal(manualStartDate) : null;
+        const manualEnd = manualEndDate ? parseDateLocal(manualEndDate) : null;
+        finalStart = manualStart || autoStart;
+        finalEnd = manualEnd || autoEnd;
+        if (manualStart && manualEnd && manualStart.getTime() > manualEnd.getTime()) {
+            finalStart = autoStart;
+            finalEnd = autoEnd;
+        }
         
         report.startDate = finalStart.toISOString().split('T')[0];
         report.endDate = finalEnd.toISOString().split('T')[0];

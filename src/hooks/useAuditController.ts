@@ -90,6 +90,11 @@ export const useAuditController = (provider: string, onNeedSettings?: () => void
     setIsLoading(false);
   };
 
+  const resetDiningApp = () => {
+    diningAppRef.current = undefined;
+    setDiningApp({ status: 'idle' });
+  };
+
   const handleAuditFilesSelect = (files: File[]) => {
     if (files.length === 0) return;
     const newItems = files.map((file) => ({
@@ -169,6 +174,7 @@ export const useAuditController = (provider: string, onNeedSettings?: () => void
     setAuditItems,
     diningApp,
     setDiningApp,
+    resetDiningApp,
     auditFilter,
     setAuditFilter,
     auditIssuesFirst,

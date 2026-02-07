@@ -2,6 +2,7 @@
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
 import * as mammoth from 'mammoth';
+import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { SmartFile, ProcessedResult, ExpenseCategory } from '../types';
 
@@ -34,6 +35,32 @@ export const extractTextFromDocx = async (file: File): Promise<string> => {
   } catch (e) {
     console.warn("Mammoth extraction failed", e);
     return "Word Document Content (Extraction Failed)";
+  }
+};
+
+// Convert DOCX to a single image (data URL) for vision models
+export const convertDocxToImage = async (file: File): Promise<string> => {
+  const arrayBuffer = await fileToArrayBuffer(file);
+  const result = await mammoth.convertToHtml({ arrayBuffer });
+  const html = result.value || '<p>(空文档)</p>';
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-10000px';
+  container.style.top = '0';
+  container.style.width = '794px'; // ~A4 width at 96dpi
+  container.style.padding = '40px';
+  container.style.background = '#ffffff';
+  container.style.color = '#111111';
+  container.style.fontFamily = 'Arial, sans-serif';
+  container.innerHTML = html;
+
+  document.body.appendChild(container);
+  try {
+    const canvas = await html2canvas(container, { backgroundColor: '#ffffff', scale: 2 });
+    return canvas.toDataURL('image/jpeg', 0.95);
+  } finally {
+    document.body.removeChild(container);
   }
 };
 

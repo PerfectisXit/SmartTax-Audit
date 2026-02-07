@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FileUpload } from './FileUpload';
 import { SmartFile, SmartFileAnalysis } from '../types';
 import { classifyDocument, Provider } from '../services/paddleService';
-import { fileToBase64, extractTextFromDocx, convertImageToPdf, packageAndDownloadFiles } from '../services/fileService';
+import { fileToBase64, extractTextFromDocx, convertDocxToImage, convertImageToPdf, packageAndDownloadFiles } from '../services/fileService';
 import { FileThumbnail } from './FileThumbnail';
 
 interface OrganizerModeProps {
@@ -97,9 +97,18 @@ export const OrganizerMode: React.FC<OrganizerModeProps> = ({
             const b64 = await fileToBase64(pending.originalFile);
             input.base64 = b64.split(',')[1];
         } else if (fileType.includes('word') || pending.originalFile.name.endsWith('.docx') || pending.originalFile.name.endsWith('.doc')) {
-            const text = await extractTextFromDocx(pending.originalFile);
-            input.textContent = text;
-            input.base64 = ""; // Hack for text-only
+            if (pending.originalFile.name.endsWith('.doc')) {
+                throw new Error('暂不支持 .doc 格式，请转换为 .docx 或导出为 PDF');
+            }
+            if (provider !== 'kimi') {
+                const dataUrl = await convertDocxToImage(pending.originalFile);
+                input.base64 = dataUrl.split(',')[1];
+                const text = await extractTextFromDocx(pending.originalFile);
+                input.textContent = text;
+            } else {
+                const text = await extractTextFromDocx(pending.originalFile);
+                input.textContent = text;
+            }
         } 
 
         const analysis = await classifyDocument(input, provider, apiKey, modelName);
@@ -216,7 +225,7 @@ export const OrganizerMode: React.FC<OrganizerModeProps> = ({
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-50">
-                                {smartFiles.sort((a,b) => (a.analysis?.sortCategory || 99) - (b.analysis?.sortCategory || 99)).map((file, idx) => (
+                                {[...smartFiles].sort((a,b) => (a.analysis?.sortCategory || 99) - (b.analysis?.sortCategory || 99)).map((file, idx) => (
                                     <tr key={file.id} className="group hover:bg-gray-50 transition-colors duration-150">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {file.status === 'success' ? (
