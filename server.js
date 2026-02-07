@@ -17,6 +17,10 @@ const MODELS_FILE = path.join(DATA_DIR, 'models.json');
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, ts: Date.now() });
+});
+
 if (process.env.SERVE_DIST === '1') {
   const distDir = path.join(__dirname, 'dist');
   if (fs.existsSync(distDir)) {

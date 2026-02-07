@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [isUsageOpen, setIsUsageOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<'audit' | 'travel'>('audit');
   const [openrouterHealth, setOpenrouterHealth] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [backendHealth, setBackendHealth] = useState<{ ok: boolean } | null>(null);
 
   // Audit Mode State
   const {
@@ -81,6 +82,31 @@ const App: React.FC = () => {
       });
     return () => { cancelled = true; };
   }, [provider]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const check = () => {
+      fetch('/api/health')
+        .then((res) => {
+          if (!res.ok) throw new Error('health not ok');
+          return res.json();
+        })
+        .then(() => {
+          if (cancelled) return;
+          setBackendHealth({ ok: true });
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setBackendHealth({ ok: false });
+        });
+    };
+    check();
+    const timer = setInterval(check, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   const refreshSettings = () => {
     const p = getProvider() as OcrProvider | null;
@@ -154,6 +180,13 @@ const App: React.FC = () => {
                 <span className="truncate">{getProviderDisplayName()}</span>
                 <span className="text-gray-300 mx-1">|</span>
                 <span className="text-xs font-mono text-gray-400">{getCurrentModelName()}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
+              <span className={`w-1.5 h-1.5 rounded-full ${backendHealth?.ok ? 'bg-green-500' : 'bg-rose-500'}`}></span>
+              <span className="text-xs text-gray-500">Service</span>
+              <span className={`text-xs font-medium ${backendHealth?.ok ? 'text-green-700' : 'text-rose-600'}`}>
+                {backendHealth?.ok ? 'Online' : 'Offline'}
+              </span>
             </div>
             {provider === 'openrouter' && openrouterHealth && !openrouterHealth.ok && (
               <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
