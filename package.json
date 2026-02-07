@@ -48,10 +48,14 @@
     "wait-on": "^7.2.0"
   },
   "build": {
+    "extends": null,
     "appId": "com.perfectis.smarttaxaudit",
     "productName": "SmartTax Audit",
     "directories": {
       "output": "dist_electron"
+    },
+    "extraMetadata": {
+      "main": "electron/main.js"
     },
     "files": [
       "dist/**",
