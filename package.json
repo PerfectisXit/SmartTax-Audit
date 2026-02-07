@@ -2,10 +2,14 @@
   "name": "smarttax-audit",
   "version": "1.0.1",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "start": "react-scripts start",
     "dev": "vite",
+    "dev:electron": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env ELECTRON_DEV=1 ELECTRON_DEV_URL=http://localhost:3000 electron .\"",
     "build": "vite build",
+    "build:renderer": "vite build",
+    "build:electron": "electron-builder",
     "preview": "vite preview",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -34,7 +38,47 @@
     "@types/react": "^18.2.61",
     "@types/react-dom": "^18.2.19",
     "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.4.21"
+    "vite": "^5.4.21",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.perfectis.smarttaxaudit",
+    "productName": "SmartTax Audit",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "server.js",
+      "data/**",
+      "package.json",
+      "ocr_script.py"
+    ],
+    "asar": true,
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "arch": [
+        "x64",
+        "arm64"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "eslintConfig": {
     "extends": [

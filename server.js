@@ -6,17 +6,26 @@ const https = require('https');
 const { spawn } = require('child_process');
 
 const app = express();
-const PORT = 3001;
+const PORT = Number(process.env.PORT || 3001);
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models';
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.APP_DATA_DIR
+  ? path.resolve(process.env.APP_DATA_DIR)
+  : path.join(__dirname, 'data');
 const MODELS_FILE = path.join(DATA_DIR, 'models.json');
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+if (process.env.SERVE_DIST === '1') {
+  const distDir = path.join(__dirname, 'dist');
+  if (fs.existsSync(distDir)) {
+    app.use(express.static(distDir));
+  }
+}
+
 const ensureDataFile = () => {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(MODELS_FILE)) {
     fs.writeFileSync(MODELS_FILE, JSON.stringify({ providers: {} }, null, 2));
   }
@@ -172,6 +181,17 @@ app.delete('/api/models/:provider', (req, res) => {
   writeModels(data);
   return res.json({ provider, models: next });
 });
+
+if (process.env.SERVE_DIST === '1') {
+  const distDir = path.join(__dirname, 'dist');
+  app.get('*', (req, res) => {
+    const indexPath = path.join(distDir, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    return res.status(404).send('dist/index.html not found');
+  });
+}
 
 app.get('/api/openrouter/models', async (req, res) => {
   const now = Date.now();

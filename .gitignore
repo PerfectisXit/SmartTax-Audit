@@ -10,6 +10,7 @@ coverage
 # Production
 build
 dist
+dist_electron
 
 # Misc
 .DS_Store
