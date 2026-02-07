@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 interface FileThumbnailProps {
@@ -11,6 +11,8 @@ export const FileThumbnail: React.FC<FileThumbnailProps> = ({ file }) => {
   const [highResUrl, setHighResUrl] = useState<string | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const thumbObjectUrlRef = useRef<string | null>(null);
+  const highResObjectUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!file) return;
@@ -39,12 +41,22 @@ export const FileThumbnail: React.FC<FileThumbnailProps> = ({ file }) => {
             }
         } else if (file.type.startsWith('image/')) {
             const url = URL.createObjectURL(file);
+            thumbObjectUrlRef.current = url;
             if (active) setThumbUrl(url);
-            return () => URL.revokeObjectURL(url);
         }
     };
     generateThumb();
-    return () => { active = false; };
+    return () => {
+      active = false;
+      if (thumbObjectUrlRef.current) {
+        URL.revokeObjectURL(thumbObjectUrlRef.current);
+        thumbObjectUrlRef.current = null;
+      }
+      if (highResObjectUrlRef.current) {
+        URL.revokeObjectURL(highResObjectUrlRef.current);
+        highResObjectUrlRef.current = null;
+      }
+    };
   }, [file]);
 
   const handleZoom = async () => {
@@ -70,7 +82,10 @@ export const FileThumbnail: React.FC<FileThumbnailProps> = ({ file }) => {
           } catch(e) { console.error(e); }
           setLoading(false);
       } else if (file.type.startsWith('image/')) {
-          setHighResUrl(thumbUrl); // Object URL is already full res
+          if (highResUrl) return;
+          const url = URL.createObjectURL(file);
+          highResObjectUrlRef.current = url;
+          setHighResUrl(url);
       }
   };
 

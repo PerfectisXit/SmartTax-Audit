@@ -29,6 +29,8 @@ const getPreviousWorkingDay = (invoiceDateStr: string): string => {
 };
 
 export const detectCategory = (data: ExtractedInvoiceData): ExpenseCategory => {
+  if (data.expenseType === TravelExpenseType.ACCOMMODATION) return ExpenseCategory.ACCOMMODATION;
+  if (data.expenseType === TravelExpenseType.DINING) return ExpenseCategory.DINING;
   const combinedItems = data.items.join(' ').toLowerCase();
   
   // Priority Change: Check Accommodation FIRST.
@@ -91,6 +93,9 @@ export const validateDiningApplicationAgainstInvoice = (
   const derivedTotal = application.staffCount + application.guestCount;
   const totalPeople = application.totalPeople > 0 ? application.totalPeople : derivedTotal;
 
+  if (!application.estimatedAmount || application.estimatedAmount <= 0) {
+    issues.push('请填写申请金额');
+  }
   if (DEFAULT_DINING_RULES.requireAmountGreaterThanInvoice && application.estimatedAmount <= invoice.totalAmount) {
     issues.push(`申请金额必须大于发票金额（申请 ${application.estimatedAmount} / 发票 ${invoice.totalAmount}）`);
   }
@@ -113,6 +118,9 @@ export const validateDiningApplicationAgainstInvoice = (
   }
   if (application.applicationDate && application.applicationDate !== plan.applicationDate) {
     issues.push(`申请单日期应为 ${plan.applicationDate}（当前 ${application.applicationDate}）`);
+  }
+  if (!application.applicationDate) {
+    issues.push('请填写申请单日期');
   }
 
   return issues;

@@ -4,16 +4,9 @@ import pkg from '../package.json';
 import { SettingsModal, OcrProvider } from './components/SettingsModal';
 import { UsageModal } from './components/UsageModal';
 import { TravelReimbursement } from './components/TravelReimbursement';
-import { auditInvoice, validateDiningApplicationAgainstInvoice } from './services/auditService';
-import { DiningApplicationData, ExpenseCategory } from './types';
 import { packageAndDownloadAuditFiles } from './services/fileService';
-import { addHistoryModel, getApiKey, getAuditConcurrency, getModel, getProvider } from './services/storageService';
-import { AuditItem, DiningAppState } from './components/audit/types';
-import { AuditFilter } from './components/audit/AuditFilters';
-import { useErrorReporter } from './hooks/useErrorReporter';
-import { detectDiningApplication, detectInvoice } from './services/auditWorkflow';
-import { runConcurrent } from './services/taskQueue';
-import { useLogStore } from './hooks/useLogStore';
+import { getModel, getProvider } from './services/storageService';
+import { useAuditController } from './hooks/useAuditController';
 import { AuditPage } from './components/audit/AuditPage';
 
 const App: React.FC = () => {
@@ -25,17 +18,30 @@ const App: React.FC = () => {
   const [openrouterHealth, setOpenrouterHealth] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // Audit Mode State
-  const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
-  const [diningApp, setDiningApp] = useState<DiningAppState>({ status: 'idle' });
-  const diningAppRef = React.useRef<DiningApplicationData | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState(false);
-  const { error, reportError, clearError } = useErrorReporter();
-  const { logs, appendLog, clearLogs } = useLogStore();
-  const AUDIT_CONCURRENCY = getAuditConcurrency();
-  const [auditPage, setAuditPage] = useState(1);
-  const AUDIT_PAGE_SIZE = 20;
-  const [auditFilter, setAuditFilter] = useState<AuditFilter>('all');
-  const [auditIssuesFirst, setAuditIssuesFirst] = useState(true);
+  const {
+    auditItems,
+    setAuditItems,
+    diningApp,
+    auditFilter,
+    setAuditFilter,
+    auditIssuesFirst,
+    setAuditIssuesFirst,
+    auditPage,
+    setAuditPage,
+    AUDIT_PAGE_SIZE,
+    pagedAuditItems,
+    auditTotalPages,
+    auditStats,
+    auditNonDiningNotice,
+    auditNoticeOnly,
+    handleAuditFilesSelect,
+    getCredentials,
+    isLoading,
+    error,
+    clearError,
+    logs,
+    clearLogs
+  } = useAuditController(provider, () => setIsSettingsOpen(true));
   
   // Load initial provider
   React.useEffect(() => {
@@ -80,121 +86,6 @@ const App: React.FC = () => {
     if (p) setProvider(p);
   };
 
-  // Helper to save model to history
-  const saveModelToHistory = (providerKey: string, modelName: string) => {
-    addHistoryModel(providerKey as any, modelName, 10);
-  };
-
-  // --- Audit Mode Logic ---
-  const updateAuditItem = (id: string, patch: Partial<AuditItem>) => {
-    setAuditItems(prev => prev.map(item => item.id === id ? { ...item, ...patch } : item));
-  };
-
-  const processAuditItems = async (items: Array<{ id: string; file: File }>) => {
-    setIsLoading(true);
-    clearError();
-
-    const { apiKey, modelName, err } = getCredentials();
-    if (err) {
-      reportError(err, '审核任务无法启动');
-      setIsLoading(false);
-      setIsSettingsOpen(true);
-      return;
-    }
-
-    await runConcurrent(items, AUDIT_CONCURRENCY, async (next) => {
-      updateAuditItem(next.id, { status: 'processing' });
-      try {
-        try {
-          const appData = await detectDiningApplication(next.file, provider, apiKey, modelName);
-          if (appData.isDiningApplication) {
-            diningAppRef.current = appData;
-            setDiningApp({ status: 'success', file: next.file, data: appData });
-            appendLog({ level: 'info', message: `识别申请单：${next.file.name}` });
-            setAuditItems(prev => prev.map(i => {
-              if (!i.result || i.result.category !== ExpenseCategory.DINING) return i;
-              return { ...i, diningIssues: validateDiningApplicationAgainstInvoice(appData, i.result.data) };
-            }));
-            updateAuditItem(next.id, { status: 'success', kind: 'application' });
-            return;
-          }
-        } catch (e) {
-          // If detection fails, continue as invoice
-        }
-        const extractedData = await detectInvoice(next.file, provider, apiKey, modelName);
-        const processedResult = auditInvoice(extractedData);
-        saveModelToHistory(provider, modelName);
-        appendLog({ level: 'info', message: `识别完成：${next.file.name}` });
-        const issues = (diningAppRef.current && processedResult.category === ExpenseCategory.DINING)
-          ? validateDiningApplicationAgainstInvoice(diningAppRef.current, processedResult.data)
-          : undefined;
-        updateAuditItem(next.id, { status: 'success', kind: 'invoice', result: processedResult, diningIssues: issues });
-      } catch (err: any) {
-        console.error(err);
-        reportError(err.message || "分析过程中发生错误，请检查 Key 或网络", '识别失败');
-        appendLog({ level: 'error', message: `识别失败：${next.file.name}`, context: err.message || '未知错误' });
-        updateAuditItem(next.id, { status: 'error', error: err.message || "分析过程中发生错误，请检查 Key 或网络" });
-      }
-    });
-    setIsLoading(false);
-  };
-
-  const getCredentials = () => {
-    let apiKey = getApiKey(provider as any);
-    let modelName = getModel(provider as any);
-
-    if (provider === 'siliconflow') modelName = modelName || 'Qwen/Qwen3-VL-32B-Instruct';
-    else if (provider === 'kimi') modelName = modelName || 'moonshot-v1-8k';
-    else if (provider === 'minimax') modelName = modelName || 'abab6.5s-chat';
-    else if (provider === 'zhipu') modelName = modelName || 'glm-4v';
-    else if (provider === 'dashscope') modelName = modelName || 'qwen-vl-max';
-    else if (provider === 'openrouter') modelName = modelName || 'openai/gpt-4o-mini';
-
-    if (!apiKey && provider !== 'openrouter') return { apiKey: '', modelName: '', err: `请先在设置中配置 ${provider.toUpperCase()} API Key` };
-    if (!modelName) return { apiKey: '', modelName: '', err: `请在设置中输入 ${provider.toUpperCase()} 的模型名称` };
-
-    return { apiKey, modelName, err: null };
-  };
-
-  const processDiningApplicationFile = async (file: File, sourceItemId?: string) => {
-    setDiningApp({ status: 'processing', file });
-    const { apiKey, modelName, err } = getCredentials();
-    if (err) {
-      setDiningApp({ status: 'error', error: err });
-      setIsSettingsOpen(true);
-      return;
-    }
-    try {
-      const appData = await detectDiningApplication(file, provider, apiKey, modelName);
-      if (!appData.isDiningApplication) {
-        setDiningApp({ status: 'error', file, error: '未识别到业务招待费申请单' });
-        return;
-      }
-      diningAppRef.current = appData;
-      setDiningApp({ status: 'success', file, data: appData });
-      setAuditItems(prev => prev.map(i => {
-        if (!i.result || i.result.category !== ExpenseCategory.DINING) return i;
-        return { ...i, diningIssues: validateDiningApplicationAgainstInvoice(appData, i.result.data) };
-      }));
-      if (sourceItemId) updateAuditItem(sourceItemId, { status: 'success', kind: 'application' });
-    } catch (e: any) {
-      setDiningApp({ status: 'error', file, error: e.message || '申请单识别失败' });
-    }
-  };
-
-  const handleAuditFilesSelect = (files: File[]) => {
-    if (files.length === 0) return;
-    const newItems = files.map((file) => ({
-      id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
-      file,
-      status: 'pending' as const
-    }));
-    if (newItems.length > 0) {
-      setAuditItems(prev => [...prev, ...newItems]);
-      void processAuditItems(newItems);
-    }
-  };
-
   const getProviderDisplayName = () => {
     if (provider === 'kimi') return 'Kimi (Moonshot)';
     if (provider === 'minimax') return 'MiniMax';
@@ -208,67 +99,6 @@ const App: React.FC = () => {
   const getCurrentModelName = () => {
     return getModel(provider as any) || 'Default';
   };
-
-  const filteredAuditItems = React.useMemo(() => {
-    let list = auditItems;
-    if (auditFilter === 'error') list = list.filter(i => i.status === 'error');
-    if (auditFilter === 'success') list = list.filter(i => i.status === 'success');
-    if (auditFilter === 'dining') list = list.filter(i => i.result?.category === ExpenseCategory.DINING);
-    if (auditIssuesFirst) {
-      list = [...list].sort((a, b) => {
-        const aIssue = a.status === 'error' || (a.diningIssues && a.diningIssues.length > 0);
-        const bIssue = b.status === 'error' || (b.diningIssues && b.diningIssues.length > 0);
-        return Number(bIssue) - Number(aIssue);
-      });
-    }
-    return list;
-  }, [auditItems, auditFilter, auditIssuesFirst]);
-
-  const auditTotalPages = Math.max(1, Math.ceil(filteredAuditItems.length / AUDIT_PAGE_SIZE));
-  const pagedAuditItems = React.useMemo(() => {
-    const start = (auditPage - 1) * AUDIT_PAGE_SIZE;
-    return filteredAuditItems.slice(start, start + AUDIT_PAGE_SIZE);
-  }, [filteredAuditItems, auditPage]);
-
-  React.useEffect(() => {
-    if (auditPage > auditTotalPages) setAuditPage(auditTotalPages);
-    if (auditPage < 1) setAuditPage(1);
-  }, [auditPage, auditTotalPages]);
-
-  const auditStats = React.useMemo(() => {
-    const total = auditItems.length;
-    const processing = auditItems.filter(i => i.status === 'processing' || i.status === 'pending').length;
-    const success = auditItems.filter(i => i.status === 'success').length;
-    const errorCount = auditItems.filter(i => i.status === 'error').length;
-    const diningCount = auditItems.filter(i => i.result?.category === ExpenseCategory.DINING).length;
-    const issueCount = auditItems.filter(i => i.status === 'error' || (i.diningIssues && i.diningIssues.length > 0)).length;
-    return { total, processing, success, errorCount, diningCount, issueCount };
-  }, [auditItems]);
-
-  const auditNonDiningNotice = React.useMemo(() => {
-    const count = auditItems.filter(i =>
-      i.status === 'success' &&
-      i.kind === 'invoice' &&
-      i.result &&
-      i.result.category !== ExpenseCategory.DINING &&
-      i.result.category !== ExpenseCategory.ACCOMMODATION
-    ).length;
-    if (count <= 0) return '';
-    return '未检测到餐饮票、住宿票或招待费申请单。如需差旅报销，请移至「差旅费批量报销」页面。';
-  }, [auditItems]);
-
-  const auditNoticeOnly = React.useMemo(() => {
-    if (auditItems.length === 0) return false;
-    if (auditItems.some(i => i.status === 'processing' || i.status === 'pending')) return false;
-    const hasDiningOrAccommodation = auditItems.some(i =>
-      i.status === 'success' &&
-      i.kind === 'invoice' &&
-      i.result &&
-      (i.result.category === ExpenseCategory.DINING || i.result.category === ExpenseCategory.ACCOMMODATION)
-    );
-    const hasDiningApp = Boolean(diningApp.data);
-    return !hasDiningOrAccommodation && !hasDiningApp && auditNonDiningNotice.length > 0;
-  }, [auditItems, diningApp.data, auditNonDiningNotice]);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-12">

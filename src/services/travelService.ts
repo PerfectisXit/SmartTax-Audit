@@ -117,8 +117,8 @@ export const calculateTravelReport = (
 
     validItems.forEach(item => {
         const inv = item.result!;
-        const amount = inv.totalAmount;
-        const tax = inv.taxAmount;
+        const amount = Number.isFinite(inv.totalAmount) ? inv.totalAmount : 0;
+        const tax = Number.isFinite(inv.taxAmount) ? inv.taxAmount : 0;
 
         report.grandTotalAmount += amount;
         report.grandTotalTax += tax;
