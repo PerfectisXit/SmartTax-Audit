@@ -1,7 +1,9 @@
 
 # SmartTax Audit Expert (智能财务票据审核助手)
 
-**Version:** v1.1.0
+[![Version](https://img.shields.io/badge/version-v1.1.0-blue)](https://github.com/PerfectisXit/SmartTax-Audit/releases)
+[![Release](https://img.shields.io/badge/release-v1.1.0-success)](https://github.com/PerfectisXit/SmartTax-Audit/releases/tag/v1.1.0)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 SmartTax Audit Expert 是一款基于大语言模型（LLM）和视觉理解（VLM）技术的智能财务报销辅助工具。它能够自动识别、审核发票和差旅凭证，帮助财务人员和员工高效完成报销流程。
 
