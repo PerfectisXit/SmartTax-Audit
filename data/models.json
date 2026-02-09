@@ -1,0 +1,7 @@
+{
+  "providers": {
+    "siliconflow": [
+      "Qwen/Qwen3-VL-32B-Instruct"
+    ]
+  }
+}

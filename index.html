@@ -1,0 +1,146 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartTax Audit Expert</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+      // Configure PDF.js worker
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <style>
+      body { 
+        font-family: -apple-system, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+        background-color: #f5f5f7; 
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      
+      /* Custom Scrollbar for Webkit */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8; 
+      }
+
+      /* Utility for custom scroll container */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #e2e8f0;
+        border-radius: 3px;
+      }
+      .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+      }
+
+      /* Animations */
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
+      }
+      
+      @keyframes pulse-subtle {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+      .animate-pulse-subtle {
+        animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      @keyframes floatIn {
+        from { opacity: 0; transform: translateY(14px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .animate-float-in {
+        animation: floatIn 0.5s ease-out forwards;
+      }
+
+      .apple-hover {
+        transition: transform 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+      }
+      .apple-hover:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.10);
+      }
+      .apple-press:active {
+        transform: translateY(0) scale(0.98);
+      }
+
+      :root {
+        --apple-card: rgba(255, 255, 255, 0.72);
+        --apple-border: rgba(0, 0, 0, 0.06);
+        --apple-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        --apple-shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.06);
+        --apple-radius: 16px;
+      }
+
+      .apple-card {
+        background: var(--apple-card);
+        border: 1px solid var(--apple-border);
+        border-radius: var(--apple-radius);
+        box-shadow: var(--apple-shadow);
+        backdrop-filter: blur(16px);
+      }
+
+      .apple-card-soft {
+        background: rgba(255, 255, 255, 0.6);
+        border: 1px solid var(--apple-border);
+        border-radius: 14px;
+        box-shadow: var(--apple-shadow-soft);
+        backdrop-filter: blur(12px);
+      }
+
+      .apple-btn {
+        border-radius: 999px;
+        border: 1px solid rgba(0,0,0,0.08);
+        background: rgba(255,255,255,0.8);
+        box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+      }
+
+      .apple-btn-primary {
+        border-radius: 999px;
+        background: #0a84ff;
+        color: white;
+        box-shadow: 0 6px 18px rgba(10,132,255,0.25);
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+    "jszip": "https://esm.sh/jszip@^3.10.1",
+    "file-saver": "https://esm.sh/file-saver@^2.0.5",
+    "mammoth": "https://esm.sh/mammoth@^1.11.0",
+    "jspdf": "https://esm.sh/jspdf@^4.1.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/src/index.tsx"></script>
+</body>
+</html>

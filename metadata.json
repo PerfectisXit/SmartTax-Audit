@@ -1,0 +1,5 @@
+{
+  "name": "SmartTax Audit Expert (GLM)",
+  "description": "Professional reimbursement audit tool powered by Zhipu GLM-4V. Validates Chinese invoices against corporate tax rules and checks company tax IDs.",
+  "requestFramePermissions": []
+}
