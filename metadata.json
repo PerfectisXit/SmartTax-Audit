@@ -1,0 +1,5 @@
+{
+  "name": "SmartTax Audit Expert (Multi-Provider)",
+  "description": "Professional reimbursement audit tool with multi-provider OCR/VLM support, including cloud providers, OpenRouter proxy, and local ChatGPT Web automation.",
+  "requestFramePermissions": []
+}
